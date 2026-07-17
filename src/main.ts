@@ -13,10 +13,12 @@ import {
 } from '@imgly/background-removal'
 
 /** Expand the keep-mask so uncertain edges / hair aren't clipped. */
-const MASK_CLOSE_RADIUS = 1
-const MASK_DILATE_RADIUS = 2
+const MASK_CLOSE_RADIUS = 2
+const MASK_DILATE_RADIUS = 3
 /** Lift mid-alpha toward opaque (gamma < 1). */
-const MASK_ALPHA_GAMMA = 0.72
+const MASK_ALPHA_GAMMA = 0.55
+/** Anything above this becomes fully opaque (protects soft subject holes). */
+const MASK_KEEP_THRESHOLD = 96
 
 const ACCEPTED = new Set([
   'image/png',
@@ -305,11 +307,18 @@ async function protectSubjectMask(maskBlob: Blob): Promise<Blob> {
 
   for (let i = 0; i < alpha.length; i++) {
     const a = pixels[i * 4 + 3]
-    // Lift uncertain mid-tones toward keep without blowing out near-zero bg.
-    alpha[i] =
-      a <= 8
-        ? a
-        : Math.min(255, Math.round(255 * Math.pow(a / 255, MASK_ALPHA_GAMMA)))
+    // Near-zero stays background; mid/high alpha is treated as subject and
+    // lifted toward opaque so soft holes in the foreground aren't punched out.
+    if (a <= 8) {
+      alpha[i] = a
+    } else if (a >= MASK_KEEP_THRESHOLD) {
+      alpha[i] = 255
+    } else {
+      alpha[i] = Math.min(
+        255,
+        Math.round(255 * Math.pow(a / 255, MASK_ALPHA_GAMMA)),
+      )
+    }
   }
 
   const closed = morphMin(
