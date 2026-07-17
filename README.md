@@ -34,4 +34,10 @@ npm run preview
 
 ## Deploy
 
-Pushes to `main` build and publish via GitHub Actions → GitHub Pages (`/knockout/`).
+Live site is served from the `gh-pages` branch:
+
+```bash
+npm run deploy
+```
+
+That builds the app and force-pushes `dist/` to `gh-pages`.
